@@ -7,8 +7,10 @@ import { createServer } from "@graphql-yoga/node"
 
 import currencyFormatter from "currency-formatter";
 
-import prisma from "../../lib/prisma";
 import { Resolvers } from "../../types";
+
+import prisma from "../../lib/prisma";
+import { findOrCreateCart } from "../../lib/cart";
 
 export type GraphQLContext = {
     prisma: PrismaClient;
@@ -29,18 +31,108 @@ const typeDefs = readFileSync(join(process.cwd(), "schema.graphql"), {
 const resolvers: Resolvers = {
     Query: {
         cart: async (_, { id }, { prisma }) => {
-            let cart = await prisma.cart.findUnique({
-                where: { id },
-            });
+            return findOrCreateCart(prisma, id);
+        },
+    },
+    Mutation: {
+        addItem: async (_, { input }, { prisma }) => {
+            const cart = await findOrCreateCart(prisma, input.cartId);
 
-            if (!cart) {
-                cart = await prisma.cart.create({
-                    data: { id },
-                });
+            await prisma.cartItem.upsert({
+                create: {
+                    cartId: cart.id,
+                    id: input.id,
+                    name: input.name,
+                    description: input.description,
+                    image: input.image,
+                    price: input.price,
+                    quantity: input.quantity || 1,
+                },
+                where: {
+                    id_cartId: {
+                        id: input.id,
+                        cartId: cart.id
+                    }
+                },
+                update: {
+                    quantity: {
+                        increment: input.quantity || 1,
+                    }
+                },
+            })
+
+            return cart
+        },
+        removeItem: async (_, { input }, { prisma }) => {
+            const { cartId } = await prisma.cartItem.delete({
+                where: {
+                    id_cartId: {
+                        id: input.id,
+                        cartId: input.cartId
+                    }
+                },
+                select: {
+                    cartId: true,
+                }
+            })
+
+            return findOrCreateCart(prisma, cartId);
+        },
+        increaseCartItem: async (_, { input }, { prisma }) => {
+            const { cartId } = await prisma.cartItem.update({
+                data: {
+                    quantity: {
+                        increment: 1
+                    }
+                },
+                where: {
+                    id_cartId: {
+                        id: input.id,
+                        cartId: input.cartId
+                    }
+                },
+                select: {
+                    cartId: true,
+                }
+            })
+
+            return findOrCreateCart(prisma, cartId);
+        },
+        decreaseCartItem: async (_, { input }, { prisma }) => {
+            const { cartId, quantity } = await prisma.cartItem.update({
+                data: {
+                    quantity: {
+                        decrement: 1
+                    }
+                },
+                where: {
+                    id_cartId: {
+                        id: input.id,
+                        cartId: input.cartId
+                    }
+                },
+                select: {
+                    cartId: true,
+                    quantity: true,
+                }
+            })
+
+            if (quantity <= 0) {
+                await prisma.cartItem.delete({
+                    where: {
+                        id_cartId: {
+                            id: input.id,
+                            cartId: input.cartId
+                        }
+                    },
+                    select: {
+                        cartId: true,
+                    }
+                })
             }
 
-            return cart;
-        },
+            return findOrCreateCart(prisma, cartId);
+        }
     },
     Cart: {
         items: async ({ id }, _, { prisma }) => {
@@ -78,6 +170,28 @@ const resolvers: Resolvers = {
                 }),
             };
         },
+    },
+    CartItem: {
+        unitTotal: item => {
+            const amount = item.price
+
+            return {
+                amount,
+                formatted: currencyFormatter.format(amount / 100, {
+                    code: currencyCode,
+                })
+            }
+        },
+        lineTotal: item => {
+            const amount = item.price * item.quantity
+
+            return {
+                amount,
+                formatted: currencyFormatter.format(amount / 100, {
+                    code: currencyCode,
+                })
+            }
+        }
     }
 };
 

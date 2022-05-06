@@ -16,6 +16,16 @@ export type Scalars = {
   Float: number;
 };
 
+export type AddToCartInput = {
+  cartId: Scalars['ID'];
+  description?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  image?: InputMaybe<Scalars['String']>;
+  name: Scalars['String'];
+  price: Scalars['Int'];
+  quantity?: InputMaybe<Scalars['Int']>;
+};
+
 export type Cart = {
   __typename?: 'Cart';
   id: Scalars['ID'];
@@ -35,10 +45,48 @@ export type CartItem = {
   unitTotal: Money;
 };
 
+export type DecreaseCartItemInput = {
+  cartId: Scalars['ID'];
+  id: Scalars['ID'];
+};
+
+export type IncreaseCartItemInput = {
+  cartId: Scalars['ID'];
+  id: Scalars['ID'];
+};
+
 export type Money = {
   __typename?: 'Money';
   amount: Scalars['Int'];
   formatted: Scalars['String'];
+};
+
+export type Mutation = {
+  __typename?: 'Mutation';
+  addItem?: Maybe<Cart>;
+  decreaseCartItem?: Maybe<Cart>;
+  increaseCartItem?: Maybe<Cart>;
+  removeItem?: Maybe<Cart>;
+};
+
+
+export type MutationAddItemArgs = {
+  input: AddToCartInput;
+};
+
+
+export type MutationDecreaseCartItemArgs = {
+  input: DecreaseCartItemInput;
+};
+
+
+export type MutationIncreaseCartItemArgs = {
+  input: IncreaseCartItemInput;
+};
+
+
+export type MutationRemoveItemArgs = {
+  input: RemoveFromCartInput;
 };
 
 export type Query = {
@@ -48,6 +96,11 @@ export type Query = {
 
 
 export type QueryCartArgs = {
+  id: Scalars['ID'];
+};
+
+export type RemoveFromCartInput = {
+  cartId: Scalars['ID'];
   id: Scalars['ID'];
 };
 
@@ -120,25 +173,35 @@ export type DirectiveResolverFn<TResult = {}, TParent = {}, TContext = {}, TArgs
 
 /** Mapping between all available schema types and the resolvers types */
 export type ResolversTypes = {
+  AddToCartInput: AddToCartInput;
   Boolean: ResolverTypeWrapper<Scalars['Boolean']>;
   Cart: ResolverTypeWrapper<CartModel>;
   CartItem: ResolverTypeWrapper<CartItemModel>;
+  DecreaseCartItemInput: DecreaseCartItemInput;
   ID: ResolverTypeWrapper<Scalars['ID']>;
+  IncreaseCartItemInput: IncreaseCartItemInput;
   Int: ResolverTypeWrapper<Scalars['Int']>;
   Money: ResolverTypeWrapper<Money>;
+  Mutation: ResolverTypeWrapper<{}>;
   Query: ResolverTypeWrapper<{}>;
+  RemoveFromCartInput: RemoveFromCartInput;
   String: ResolverTypeWrapper<Scalars['String']>;
 };
 
 /** Mapping between all available schema types and the resolvers parents */
 export type ResolversParentTypes = {
+  AddToCartInput: AddToCartInput;
   Boolean: Scalars['Boolean'];
   Cart: CartModel;
   CartItem: CartItemModel;
+  DecreaseCartItemInput: DecreaseCartItemInput;
   ID: Scalars['ID'];
+  IncreaseCartItemInput: IncreaseCartItemInput;
   Int: Scalars['Int'];
   Money: Money;
+  Mutation: {};
   Query: {};
+  RemoveFromCartInput: RemoveFromCartInput;
   String: Scalars['String'];
 };
 
@@ -167,6 +230,13 @@ export type MoneyResolvers<ContextType = GraphQLContext, ParentType extends Reso
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type MutationResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['Mutation'] = ResolversParentTypes['Mutation']> = {
+  addItem?: Resolver<Maybe<ResolversTypes['Cart']>, ParentType, ContextType, RequireFields<MutationAddItemArgs, 'input'>>;
+  decreaseCartItem?: Resolver<Maybe<ResolversTypes['Cart']>, ParentType, ContextType, RequireFields<MutationDecreaseCartItemArgs, 'input'>>;
+  increaseCartItem?: Resolver<Maybe<ResolversTypes['Cart']>, ParentType, ContextType, RequireFields<MutationIncreaseCartItemArgs, 'input'>>;
+  removeItem?: Resolver<Maybe<ResolversTypes['Cart']>, ParentType, ContextType, RequireFields<MutationRemoveItemArgs, 'input'>>;
+};
+
 export type QueryResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['Query'] = ResolversParentTypes['Query']> = {
   cart?: Resolver<Maybe<ResolversTypes['Cart']>, ParentType, ContextType, RequireFields<QueryCartArgs, 'id'>>;
 };
@@ -175,6 +245,7 @@ export type Resolvers<ContextType = GraphQLContext> = {
   Cart?: CartResolvers<ContextType>;
   CartItem?: CartItemResolvers<ContextType>;
   Money?: MoneyResolvers<ContextType>;
+  Mutation?: MutationResolvers<ContextType>;
   Query?: QueryResolvers<ContextType>;
 };
 
