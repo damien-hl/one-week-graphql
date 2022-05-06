@@ -3,7 +3,7 @@ import type { PrismaClient } from "@prisma/client";
 
 import { join } from "path";
 import { readFileSync } from "fs";
-import { createServer } from "@graphql-yoga/node"
+import { createServer, GraphQLYogaError } from "@graphql-yoga/node"
 
 import currencyFormatter from "currency-formatter";
 
@@ -11,6 +11,7 @@ import { Resolvers } from "../../types";
 
 import prisma from "../../lib/prisma";
 import { findOrCreateCart } from "../../lib/cart";
+import { stripe } from "../../lib/stripe";
 
 export type GraphQLContext = {
     prisma: PrismaClient;
@@ -132,6 +133,57 @@ const resolvers: Resolvers = {
             }
 
             return findOrCreateCart(prisma, cartId);
+        },
+        createCheckoutSession: async (_, { input }, { prisma }) => {
+            const { cartId } = input
+
+            const cart = await prisma.cart.findUnique({
+                where: {
+                    id: cartId
+                }
+            })
+
+            if (!cart) {
+                throw new GraphQLYogaError("Invalid cart")
+            }
+
+            const cartItems = await prisma.cart.findUnique({
+                where: {
+                    id: cartId
+                }
+            }).items()
+
+            if (!cartItems || cartItems.length === 0) {
+                throw new GraphQLYogaError("Cart is empty")
+            }
+
+            const line_items = cartItems.map(item => ({
+                quantity: item.quantity,
+                price_data: {
+                    currency: currencyCode,
+                    unit_amount: item.price,
+                    product_data: {
+                        name: item.name,
+                        description: item.description || undefined,
+                        images: item.image ? [item.image] : [],
+                    }
+                }
+            }))
+
+            const session = await stripe.checkout.sessions.create({
+                line_items,
+                mode: "payment",
+                metadata: {
+                    cartId: cart.id
+                },
+                success_url: 'http://localhost:3000/thankyou?session_id={CHECKOUT_SESSION_ID}',
+                cancel_url: 'http://localhost:3000/cart?cancelled=true',
+            })
+
+            return {
+                id: session.id,
+                url: session.url,
+            }
         }
     },
     Cart: {
