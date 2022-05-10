@@ -1,17 +1,18 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import type { PrismaClient } from "@prisma/client";
 
+import type { Resolvers } from "../../types";
+
 import { join } from "path";
 import { readFileSync } from "fs";
 import { createServer, GraphQLYogaError } from "@graphql-yoga/node"
 
 import currencyFormatter from "currency-formatter";
 
-import { Resolvers } from "../../types";
-
 import prisma from "../../lib/prisma";
-import { findOrCreateCart } from "../../lib/cart";
 import { stripe } from "../../lib/stripe";
+import { currencyCode, findOrCreateCart, validateCartItems } from "../../lib/cart";
+import { products } from "../../lib/products";
 
 export type GraphQLContext = {
     prisma: PrismaClient;
@@ -22,8 +23,6 @@ export async function createContext(): Promise<GraphQLContext> {
         prisma,
     };
 }
-
-const currencyCode = "EUR";
 
 const typeDefs = readFileSync(join(process.cwd(), "schema.graphql"), {
     encoding: "utf-8",
@@ -157,18 +156,7 @@ const resolvers: Resolvers = {
                 throw new GraphQLYogaError("Cart is empty")
             }
 
-            const line_items = cartItems.map(item => ({
-                quantity: item.quantity,
-                price_data: {
-                    currency: currencyCode,
-                    unit_amount: item.price,
-                    product_data: {
-                        name: item.name,
-                        description: item.description || undefined,
-                        images: item.image ? [item.image] : [],
-                    }
-                }
-            }))
+            const line_items = validateCartItems(products, cartItems);
 
             const session = await stripe.checkout.sessions.create({
                 line_items,
