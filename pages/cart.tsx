@@ -1,14 +1,16 @@
 import { GetServerSideProps, NextPage } from "next";
+
+import { Header } from "../components/Header";
+
 import { getCartId } from "../lib/cart.client";
-import { useClient } from "../lib/client";
 import { useGetCartQuery } from "../types";
 
 const Cart: NextPage<IProps> = ({ cartId }) => {
-    const client = useClient();
-    const { data } = useGetCartQuery({ variables: { id: cartId }, client });
+    const { data } = useGetCartQuery({ variables: { id: cartId } });
 
     return (
         <div className="min-h-screen flex flex-col">
+            <Header />
             <main className="p-8 min-h-screen">
                 <div className="mx-auto max-w-xl space-y-8">
                     <h1 className="text-4xl">Cart</h1>
